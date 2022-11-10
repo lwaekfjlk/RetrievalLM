@@ -168,3 +168,4 @@ cython_debug/
 # own
 checkpoints/
 logs/
+images/
