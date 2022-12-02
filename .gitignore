@@ -170,3 +170,5 @@ checkpoints/
 logs/
 images/
 Language Modeling
+outputs
+*.slurm

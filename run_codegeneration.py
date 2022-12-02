@@ -222,6 +222,13 @@ class DataTrainingArguments:
     test_subset: str = field(default='test')
     patience: int = field(default=None)
 
+    no_repeat_ngram_size: int = field(
+        default=0,
+        metadata={
+            "help": "If set to int > 0, all ngrams of that size can only occur once."
+            },
+    )
+
     def __post_init__(self):
         if self.dataset_name is None and self.train_file is None and self.validation_file is None:
             raise ValueError("Need either a dataset name or a training/validation file.")
@@ -327,6 +334,8 @@ def main():
 
     # Detecting last checkpoint.
     last_checkpoint = None
+    if not os.path.exists(training_args.output_dir):
+        os.makedirs(training_args.output_dir)
     if os.path.isdir(training_args.output_dir) and training_args.do_train and not training_args.overwrite_output_dir:
         last_checkpoint = get_last_checkpoint(training_args.output_dir)
         if last_checkpoint is None and len(os.listdir(training_args.output_dir)) > 0:
@@ -647,7 +656,7 @@ def main():
         logger.info("*** Predict ***")
 
         predict_results = trainer.predict(
-            predict_dataset, metric_key_prefix="predict", max_length=max_length, num_beams=num_beams
+            predict_dataset, metric_key_prefix="predict", max_length=max_length, num_beams=num_beams, no_repeat_ngram_size=data_args.no_repeat_ngram_size
         )
         metrics = predict_results.metrics
         max_predict_samples = (
