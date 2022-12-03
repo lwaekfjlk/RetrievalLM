@@ -169,9 +169,12 @@ cython_debug/
 checkpoints/
 logs/
 images/
-Language Modeling
 outputs
 *.slurm
+<<<<<<< HEAD
 
 **/data/*
 !**/dummy_file
+=======
+archive
+>>>>>>> 36e4b2493c9ea0d2e8de871bcb53b1954d1ed1a5

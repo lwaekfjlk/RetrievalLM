@@ -221,13 +221,37 @@ class DataTrainingArguments:
     eval_subset: str = field(default='test')
     test_subset: str = field(default='test')
     patience: int = field(default=None)
-
     no_repeat_ngram_size: int = field(
         default=0,
         metadata={
             "help": "If set to int > 0, all ngrams of that size can only occur once."
             },
     )
+    sampling: bool = field(
+        default=False,
+        metadata={
+            "help": "If set to True, use top-k sampling during generation."
+            },
+    )
+    top_k: int = field(
+        default=5,
+        metadata={
+            "help": "If sampling is set to True, use top-k sampling during generation."
+            },
+    )
+    top_p: float = field(
+        default=0.9,
+        metadata={
+            "help": "If sampling is set to True, use top-p sampling during generation."
+            },
+    )
+    temperature: float = field(
+        default=0.3,
+        metadata={
+            "help": "If sampling is set to True, use temperature sampling during generation."
+            },
+    )
+
 
     def __post_init__(self):
         if self.dataset_name is None and self.train_file is None and self.validation_file is None:
@@ -655,9 +679,14 @@ def main():
     if training_args.do_predict:
         logger.info("*** Predict ***")
 
-        predict_results = trainer.predict(
-            predict_dataset, metric_key_prefix="predict", max_length=max_length, num_beams=num_beams, no_repeat_ngram_size=data_args.no_repeat_ngram_size
-        )
+        if not data_args.sampling:
+            predict_results = trainer.predict(
+                predict_dataset, metric_key_prefix="predict", max_length=max_length, num_beams=num_beams, no_repeat_ngram_size=data_args.no_repeat_ngram_size
+            )
+        else:
+            predict_results = trainer.predict(
+                predict_dataset, metric_key_prefix="predict", max_length=max_length, top_k=data_args.top_k, top_p=data_args.top_p, do_sample=True, temperature=data_args.temperature
+            )
         metrics = predict_results.metrics
         max_predict_samples = (
             data_args.max_predict_samples if data_args.max_predict_samples is not None else len(predict_dataset)
