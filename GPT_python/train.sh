@@ -1,0 +1,1 @@
+CUDA_VISIBLE_DEVICES=1 python train.py --with_wandb --evaluation_steps 2000

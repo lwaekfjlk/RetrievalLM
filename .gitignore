@@ -171,4 +171,10 @@ logs/
 images/
 outputs
 *.slurm
+
+**/dataset/python_lines/json/*
+**/runs/*
+**/tmp/*
+**/wandb/*
+!**/dummy_file
 archive
