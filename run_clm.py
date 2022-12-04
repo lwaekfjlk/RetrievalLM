@@ -434,6 +434,12 @@ def main():
                 examples[text_column_name],
                 add_special_tokens=False,
                 padding='longest')
+            target = tokenizer.batch_encode_plus(
+                examples[text_column_name],
+                add_special_tokens=False,
+                padding=False)
+            output["labels"] = target["input_ids"]
+
         # clm input could be much much longer than block_size
         if "Token indices sequence length is longer than the" in cl.out:
             tok_logger.warning(
@@ -489,11 +495,13 @@ def main():
         python_token_id = tokenizer.convert_tokens_to_ids("<python>")
         for idx in range(len(examples['input_ids'])):
             examples['input_ids'][idx].insert(0, python_token_id)
+            examples['labels'][idx].insert(0, python_token_id)
             examples['attention_mask'][idx].insert(0, 1)
             l = sum(examples['attention_mask'][idx])
             examples['input_ids'][idx].insert(l, tokenizer.eos_token_id)
+            examples['labels'][idx].insert(l, tokenizer.eos_token_id)
             examples['attention_mask'][idx].insert(l, 1)
-            examples['labels'] = list(examples['input_ids'])
+            examples['labels'][idx].extend((len(examples['input_ids'][idx]) - len(examples['labels'][idx])) * [padding_index])
 
         return examples
 
