@@ -171,13 +171,11 @@ logs/
 images/
 outputs
 *.slurm
-<<<<<<< HEAD
 
 **/dataset/python_lines/json/*
 **/runs/*
 **/tmp/*
 **/wandb/*
 !**/dummy_file
-=======
 archive
->>>>>>> 36e4b2493c9ea0d2e8de871bcb53b1954d1ed1a5
+
