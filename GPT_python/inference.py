@@ -18,6 +18,7 @@ input_ids = tokenizer.encode("<python> " + context,
 outputs = model.generate(input_ids=input_ids.to("cuda") if use_cuda else input_ids,
                          max_length=128,
                          temperature=0.7,
+                         pad_token_id=tokenizer.eos_token_id,
                          num_return_sequences=1)
 
 decoded = tokenizer.decode(outputs[0], skip_special_tokens=True)
