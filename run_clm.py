@@ -42,6 +42,7 @@ from transformers import (
     MODEL_FOR_CAUSAL_LM_MAPPING,
     AutoConfig,
     AutoModelForCausalLM,
+    AutoModelWithLMHead,
     AutoTokenizer,
     EarlyStoppingCallback,
     HfArgumentParser,
@@ -395,7 +396,7 @@ def main():
         )
 
     if model_args.model_name_or_path:
-        model = AutoModelForCausalLM.from_pretrained(
+        model = AutoModelWithLMHead.from_pretrained(
             model_args.model_name_or_path,
             from_tf=bool(".ckpt" in model_args.model_name_or_path),
             config=config,
