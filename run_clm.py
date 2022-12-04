@@ -448,8 +448,6 @@ def main():
         return output
 
     with training_args.main_process_first(desc="dataset map tokenization"):
-        del raw_datasets["train"]
-        del raw_datasets["test"]
         tokenized_datasets = raw_datasets.map(
             tokenize_function,
             batched=True,
