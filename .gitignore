@@ -173,7 +173,7 @@ outputs
 *.slurm
 <<<<<<< HEAD
 
-**/data/*
+**/dataset/python_lines/*
 !**/dummy_file
 =======
 archive
