@@ -1,11 +1,12 @@
 from transformers import AutoTokenizer,AutoModelWithLMHead
 tokenizer = AutoTokenizer.from_pretrained("congcongwang/gpt2_medium_fine_tuned_coder")
-model = AutoModelWithLMHead.from_pretrained("congcongwang/gpt2_medium_fine_tuned_coder")
+#model = AutoModelWithLMHead.from_pretrained("congcongwang/gpt2_medium_fine_tuned_coder")
+model = AutoModelWithLMHead.from_pretrained("tmp/model/distilgpt2_fine_tuned_coder/0_GPTSingleHead")
 # or
 # tokenizer = AutoTokenizer.from_pretrained("congcongwang/distilgpt2_fine_tuned_coder")
 # model = AutoModelWithLMHead.from_pretrained("congcongwang/distilgpt2_fine_tuned_coder")
 use_cuda=True
-context="def factorial"
+context="self.error("
 lang="python" # can be java as well.
 
 if use_cuda:
