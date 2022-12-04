@@ -429,16 +429,14 @@ def main():
 
     def tokenize_function(examples):
         with CaptureLogger(tok_logger) as cl:
+            # trucate to batch_max_length
             output = tokenizer.batch_encode_plus(
                 examples[text_column_name],
                 add_special_tokens=False,
-                padding=True,
-                max_length=tokenizer.model_max_length - 1)
+                padding='longest')
             target = tokenizer.batch_encode_plus(
                 examples[text_column_name],
-                add_special_tokens=False,
-                padding=True,
-                max_length=tokenizer.model_max_length - 1)
+                add_special_tokens=False,)
             
             output['labels'] = target['input_ids']
         # clm input could be much much longer than block_size
@@ -494,13 +492,13 @@ def main():
     #     return result
     def process_for_code(examples):
         python_token_id = tokenizer.convert_tokens_to_ids("<python>")
-        
         for idx in range(len(examples['input_ids'])):
-            l = sum(examples['attention_mask'][idx])
             examples['input_ids'][idx].insert(0, python_token_id)
             examples['attention_mask'][idx].insert(0, 1)
-            examples['labels'][idx].insert(l, tokenizer.eos_token_id)
-        return {'input_ids': examples['input_ids'], 'labels': examples['labels'], 'attention_mask': examples['attention_mask']}
+            examples['labels'][idx].append(tokenizer.eos_token_id)
+            examples['labels'][idx].extend([padding_index] * (len(examples['input_ids'][idx]) - len(examples['labels'][idx])))
+
+        return examples
 
 
 
