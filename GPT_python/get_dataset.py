@@ -1,14 +1,19 @@
 import datasets
 import jsonlines
 
+'''
 train_lines = datasets.load_dataset('Fraser/python-lines', split='train')
-with jsonlines.open('./data/train.jsonl', mode='w') as writer:
+with jsonlines.open('./dataset/python_lines/json/train.jsonl', mode='w') as writer:
     writer.write_all(train_lines)
 
 test_lines = datasets.load_dataset('Fraser/python-lines', split='test')
-with jsonlines.open('./data/test.jsonl', mode='w') as writer:
+with jsonlines.open('./dataset/python_lines/json/test.jsonl', mode='w') as writer:
     writer.write_all(test_lines)
+'''
 
 validation_lines = datasets.load_dataset('Fraser/python-lines', split='validation')
-with jsonlines.open('./data/validation.jsonl', mode='w') as writer:
-    writer.write_all(validation_lines)
+with jsonlines.open('./dataset/python_lines/json/dev.jsonl', mode='w') as writer:
+    for idx, line in enumerate(validation_lines):
+        writer.write(line)
+        if idx > 3000:
+            break

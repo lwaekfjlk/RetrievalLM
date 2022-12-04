@@ -14,19 +14,20 @@ MODEL_MAP = {"distilgpt2": "distilgpt2", "gpt2": "gpt2", "gpt2_medium": "gpt2-me
 from model import GPTSingleHead
 from trainer import ModelTrainer
 from data import SrcCodeDataset
+from data import PythonLinesDataset
 from evaluate import SingleCLMEvaluator
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Hyper params')
     parser.add_argument('--model_select', type=str, default="distilgpt2",
                         help='model select from distilgpt2, gpt2_medium, gpt2, or gpt2_large')
-    parser.add_argument('--dataset_name', type=str, default="source_code",
+    parser.add_argument('--dataset_name', type=str, default="python_lines",
                         help='dataset name whatever name you put into the ./dataset directory (by default: source_code)')
     parser.add_argument('--per_gpu_train_batch_size', type=int, default=4,
                         help='input batch size for training')
     parser.add_argument('--dev_batch_size', type=int, default=8,
                         help='input batch size for development')
-    parser.add_argument('--num_epochs_train', type=int, default=16,
+    parser.add_argument('--num_epochs_train', type=int, default=1,
                         help='number of epochs to train')
     parser.add_argument('--max_seq_length', type=int, default=256,
                         help='maximum sequence length of samples in a batch for training')
@@ -44,7 +45,7 @@ if __name__ == '__main__':
                         help='accumulation steps if you want large batch size but can not fit in the memory allowed')
     parser.add_argument('--n_gpu', type=int, default=1,
                         help='number of gpu for training')
-    parser.add_argument('--visiable_device', type=str, default="0",
+    parser.add_argument('--visiable_device', type=str, default="1",
                         help='visiable gpus for training, should be consistent with n_gpu')
     parser.add_argument('--evaluation_steps', type=int, default=200,
                         help='evaluation_steps')
@@ -73,10 +74,16 @@ if __name__ == '__main__':
     model.add_special_words({"pad_token": "<pad>", "additional_special_tokens": ["<python>", "<java>"]})
     #load training dataset
     file_path = dataset_folder + "train.jsonl"
-    train_dataset = SrcCodeDataset(file_path, model, cache_path=os.path.join(".cache", output_path, "train"))
+    if args.dataset_name == "python_lines":
+        train_dataset = PythonLinesDataset(file_path, model, cache_path=os.path.join(".cache", output_path, "train"))
+    else:
+        train_dataset = SrcCodeDataset(file_path, model, cache_path=os.path.join(".cache", output_path, "train"))
     #load developlemt dataset
     file_path = dataset_folder + "dev.jsonl"
-    dev_dataset = SrcCodeDataset(file_path, model, cache_path=os.path.join(".cache", output_path, "dev"))
+    if args.dataset_name == "python_lines":
+        dev_dataset = PythonLinesDataset(file_path, model, cache_path=os.path.join(".cache", output_path, "dev"))
+    else:
+        dev_dataset = SrcCodeDataset(file_path, model, cache_path=os.path.join(".cache", output_path, "dev"))
     # initialize development evaluator
     dev_evaluator = SingleCLMEvaluator()
     # initialize model trainer
