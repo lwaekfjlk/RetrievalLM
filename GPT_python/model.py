@@ -46,7 +46,9 @@ class GPTSingleHead(nn.Module):
             self.gpt.resize_token_embeddings(new_num_tokens=orig_num_tokens + num_added_tokens)
 
     def forward(self, input: Dict[str, torch.Tensor]):
-        loss, logits=self.gpt(input["input_ids"],labels=input["input_ids"])[:2]
+        input['labels'] = input["input_ids"].clone()
+        input['labels'][input['labels']==self.tokenizer.pad_token_id] = -100
+        loss, logits=self.gpt(input["input_ids"],labels=input['labels'])[:2]
         return loss, logits
 
     def get_config_dict(self):
