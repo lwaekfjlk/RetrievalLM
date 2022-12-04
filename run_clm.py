@@ -428,7 +428,18 @@ def main():
 
     def tokenize_function(examples):
         with CaptureLogger(tok_logger) as cl:
-            output = tokenizer(examples[text_column_name])
+            output = tokenizer.batch_encode_plus(
+                examples[text_column_name],
+                add_special_tokens=False,
+                padding=True,
+                max_length=tokenizer.model_max_length - 1)
+            target = tokenizer.batch_encode_plus(
+                examples[text_column_name],
+                add_special_tokens=False,
+                padding=True,
+                max_length=tokenizer.model_max_length - 1)
+            
+            output['labels'] = target['input_ids']
         # clm input could be much much longer than block_size
         if "Token indices sequence length is longer than the" in cl.out:
             tok_logger.warning(
@@ -437,6 +448,8 @@ def main():
         return output
 
     with training_args.main_process_first(desc="dataset map tokenization"):
+        del raw_datasets["train"]
+        del raw_datasets["test"]
         tokenized_datasets = raw_datasets.map(
             tokenize_function,
             batched=True,
@@ -478,6 +491,16 @@ def main():
     #     }
     #     result["labels"] = result["input_ids"].copy()
     #     return result
+    def process_for_code(examples):
+        python_token_id = tokenizer.convert_tokens_to_ids("<python>")
+        
+        for idx in range(len(examples['input_ids'])):
+            l = sum(examples['attention_mask'][idx])
+            examples['input_ids'][idx].insert(0, python_token_id)
+            examples['attention_mask'][idx].insert(0, 1)
+            examples['labels'][idx].insert(l, tokenizer.eos_token_id)
+        return {'input_ids': examples['input_ids'], 'labels': examples['labels'], 'attention_mask': examples['attention_mask']}
+
 
 
     def group_texts(examples):
@@ -524,7 +547,7 @@ def main():
 
     with training_args.main_process_first(desc="grouping texts together"):
         lm_datasets = tokenized_datasets.map(
-            group_texts,
+            process_for_code,
             batched=True,
             num_proc=data_args.preprocessing_num_workers,
             load_from_cache_file=not data_args.overwrite_cache,
