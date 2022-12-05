@@ -7,7 +7,6 @@ python -u ./run_clm.py \
   --dstore_dir /bos/tmp15/guanzhol/rlm/checkpoints/${MODEL} \
   --do_eval \
   --eval_subset train \
-  --max_eval_samples 200000 \
   --save_knnlm_dstore \
   --build_index \
   --cache_dir /bos/tmp15/guanzhol/rlm/checkpoints/${MODEL}/python-lines-caches
