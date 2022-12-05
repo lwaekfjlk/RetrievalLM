@@ -23,13 +23,13 @@ if __name__ == '__main__':
                         help='model select from distilgpt2, gpt2_medium, gpt2, or gpt2_large')
     parser.add_argument('--dataset_name', type=str, default="python_lines",
                         help='dataset name whatever name you put into the ./dataset directory (by default: source_code)')
-    parser.add_argument('--per_gpu_train_batch_size', type=int, default=4,
+    parser.add_argument('--per_gpu_train_batch_size', type=int, default=16,
                         help='input batch size for training')
-    parser.add_argument('--dev_batch_size', type=int, default=8,
+    parser.add_argument('--dev_batch_size', type=int, default=32,
                         help='input batch size for development')
     parser.add_argument('--num_epochs_train', type=int, default=1,
                         help='number of epochs to train')
-    parser.add_argument('--max_seq_length', type=int, default=256,
+    parser.add_argument('--max_seq_length', type=int, default=128,
                         help='maximum sequence length of samples in a batch for training')
     parser.add_argument('--lr', type=float, default=2e-5,
                         help='learning rate')
