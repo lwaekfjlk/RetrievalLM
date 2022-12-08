@@ -191,7 +191,7 @@ class KNNWrapper(object):
         
         interpolated_scores = KNNWrapper.interpolate(knn_log_probs, lm_logits, self.lmbda) # (nonpad, vocab)
         output[nonpad_mask] = interpolated_scores
-        return output 
+        return output
 
     def knns_to_log_prob(self, knns, neg_dists):
         probs = torch.nn.functional.softmax(neg_dists / self.knn_temperature, dim=-1)

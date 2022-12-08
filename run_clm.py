@@ -189,6 +189,55 @@ class DataTrainingArguments:
     patience: int = field(default=None)
     prompt: str = field(default=None)
 
+    no_repeat_ngram_size: int = field(
+        default=0,
+        metadata={
+            "help": "If set to int > 0, all ngrams of that size can only occur once."
+            },
+    )
+    sampling: bool = field(
+        default=False,
+        metadata={
+            "help": "If set to True, use top-k sampling during generation."
+            },
+    )
+    top_k: int = field(
+        default=5,
+        metadata={
+            "help": "If sampling is set to True, use top-k sampling during generation."
+            },
+    )
+    top_p: float = field(
+        default=0.9,
+        metadata={
+            "help": "If sampling is set to True, use top-p sampling during generation."
+            },
+    )
+    temperature: float = field(
+        default=0.3,
+        metadata={
+            "help": "If sampling is set to True, use temperature sampling during generation."
+            },
+    )
+    num_beams: Optional[int] = field(
+        default=None,
+        metadata={
+            "help": (
+                "Number of beams to use for evaluation. This argument will be passed to ``model.generate``, "
+                "which is used during ``evaluate`` and ``predict``."
+            )
+        },
+    )
+    generate_length: Optional[int] = field(
+        default=200,
+        metadata={
+            "help": (
+                "Number of tokens to generate. This argument will be passed to ``model.generate``, "
+                "which is used during ``evaluate`` and ``predict``."
+            )
+        },
+    )
+
 
     def __post_init__(self):
         if self.dataset_name is None and self.train_file is None and self.validation_file is None:
@@ -454,6 +503,7 @@ def main():
             num_proc=data_args.preprocessing_num_workers,
             remove_columns=column_names,
             load_from_cache_file=not data_args.overwrite_cache,
+            batch_size=2048,
             desc="Running tokenizer on dataset",
         )
 
@@ -502,7 +552,6 @@ def main():
             examples['labels'][idx].extend((len(examples['input_ids'][idx]) - len(examples['labels'][idx])) * [padding_index])
 
         return examples
-
 
 
     def group_texts(examples):
@@ -653,6 +702,34 @@ def main():
 
         trainer.log_metrics("eval", metrics)
         trainer.save_metrics("eval", metrics)
+    
+    if training_args.do_predict:
+        logger.info("*** Predict ***")
+        # load data from eval dataset
+        eval_dataset = lm_datasets[data_args.eval_subset]
+        if data_args.max_eval_samples is not None:
+            eval_dataset = eval_dataset.select(range(data_args.max_eval_samples))
+        data_loader = trainer.get_eval_dataloader(eval_dataset)
+        output_file = open(training_args.output_dir + "/predictions.txt", "w")
+        # predict
+        for batch in tqdm(data_loader):
+            input_ids = batch["input_ids"][:,:4].to(training_args.device)
+            attention_mask = batch["attention_mask"][:,:4].to(training_args.device)
+            with torch.no_grad():
+                if not data_args.sampling:
+                    predict_results = model.generate(
+                        input_ids=input_ids, attention_mask=attention_mask, max_length=data_args.generate_length,
+                        num_beams=data_args.num_beams, no_repeat_ngram_size=data_args.no_repeat_ngram_size
+                        )
+                else:
+                    predict_results = model.generate(
+                        input_ids=input_ids, attention_mask=attention_mask, max_length=data_args.generate_length,
+                        sampling=True, top_k=data_args.top_k, top_p=data_args.top_p, temperature=data_args.temperature,
+                    )
+
+            for predict_result in predict_results:
+                output_file.write(tokenizer.decode(predict_result, skip_special_tokens=True) + "\n")
+        output_file.close()
     
     if data_args.prompt is not None:
         generated_ids = model.generate(tokenizer.encode(data_args.prompt, return_tensors='pt').to(training_args.device), num_beams=5, num_return_sequences=5, do_sample=True)
