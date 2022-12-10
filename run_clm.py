@@ -33,8 +33,10 @@ from typing import Optional
 import torch
 
 import datasets
-from datasets import load_dataset
+from datasets import load_dataset, load_metric
+import code_bert_score
 from tqdm import tqdm
+import json
 
 import transformers
 from transformers import (
@@ -190,7 +192,7 @@ class DataTrainingArguments:
     prompt: str = field(default=None)
 
     no_repeat_ngram_size: int = field(
-        default=0,
+        default=3,
         metadata={
             "help": "If set to int > 0, all ngrams of that size can only occur once."
             },
@@ -278,6 +280,7 @@ class KNNArguments:
 
     ## RetoMaton args:
     retomaton: bool = field(default=False)
+    retomaton_new: bool = field(default=False)
     cluster_dstore: bool = field(default=False)
     no_pointer: bool = field(default=False)
     min_knns: int = field(default=1)
@@ -704,6 +707,7 @@ def main():
         trainer.save_metrics("eval", metrics)
     
     if training_args.do_predict:
+        bleu_metric = load_metric("sacrebleu")
         logger.info("*** Predict ***")
         # load data from eval dataset
         eval_dataset = lm_datasets[data_args.eval_subset]
@@ -712,7 +716,12 @@ def main():
         data_loader = trainer.get_eval_dataloader(eval_dataset)
         output_file = open(training_args.output_dir + "/predictions.txt", "w")
         # predict
+        generate_results = []
+        original_texts = []
         for batch in tqdm(data_loader):
+            texts = tokenizer.batch_decode(batch["input_ids"][:,1:].tolist(), skip_special_tokens=True)
+            for text in texts:
+                original_texts.append([text])
             input_ids = batch["input_ids"][:,:4].to(training_args.device)
             attention_mask = batch["attention_mask"][:,:4].to(training_args.device)
             with torch.no_grad():
@@ -724,12 +733,31 @@ def main():
                 else:
                     predict_results = model.generate(
                         input_ids=input_ids, attention_mask=attention_mask, max_length=data_args.generate_length,
-                        sampling=True, top_k=data_args.top_k, top_p=data_args.top_p, temperature=data_args.temperature,
+                        do_sample=True, top_k=data_args.top_k, top_p=data_args.top_p, temperature=data_args.temperature,
                     )
-
-            for predict_result in predict_results:
-                output_file.write(tokenizer.decode(predict_result, skip_special_tokens=True) + "\n")
+            for predict_result, gd in zip(predict_results, texts):
+                generate_results.append(tokenizer.decode(predict_result, skip_special_tokens=True))
+                output_file.write(generate_results[-1] + '\t' + gd + "\n")
         output_file.close()
+        # calculate bleu score
+        bleu_score = bleu_metric.compute(predictions=generate_results, references=original_texts)["score"]
+        logger.info(f"bleu score: {bleu_score}")
+        # calculate bertscore
+        # (precision, recall, f1, f3)
+        try:
+            assert len(generate_results) == len(original_texts)
+        except:
+            print(len(generate_results), len(original_texts))
+        bert_score = code_bert_score.score(generate_results, [t[0] for t in original_texts], lang="python", verbose=True, no_punc=True, batch_size=1)
+        metrics_file_name = training_args.output_dir + "/eval_results.json"
+        metrics = json.load(open(metrics_file_name, "r"))
+        metrics["bleu_score"] = bleu_score
+        metrics["bert_precision"] = torch.mean(bert_score[0]).item()
+        metrics["bert_recall"] = torch.mean(bert_score[1]).item()
+        metrics["bert_f1"] = torch.mean(bert_score[2]).item()
+
+        json.dump(metrics, open(metrics_file_name, "w"), indent=4)
+
     
     if data_args.prompt is not None:
         generated_ids = model.generate(tokenizer.encode(data_args.prompt, return_tensors='pt').to(training_args.device), num_beams=5, num_return_sequences=5, do_sample=True)
