@@ -25,11 +25,13 @@ logger = logging.getLogger(__name__)
 logger.setLevel(20)
 
 class RetomatonWrapper(KNNWrapper):
-    def __init__(self, no_pointer=False, min_knns=1, max_knns=1024, members=None, **kwargs):
+    def __init__(self, no_pointer=False, min_knns=1, max_knns=1024, members=None, tokenizer=None, **kwargs):
         super().__init__(**kwargs)
         self.no_pointer = no_pointer
         self.min_knns = min_knns
         self.max_knns = max_knns
+        self.tokenizer = tokenizer
+        self.templates = []
 
         if members is None:
             available_member_files = glob.glob(f'{self.dstore_dir}/members*')
@@ -64,7 +66,6 @@ class RetomatonWrapper(KNNWrapper):
         lm_logits = output
         lm_logits = torch.nn.functional.log_softmax(lm_logits, dim=-1) # (batch, time, vocab)
         queries = self.activation_capturer.captured # (batch, time, dim) 
-        
         shifted_labels = self.labels[:, shift:]
         nonpad_mask = torch.cat([
             shifted_labels != -100, 
@@ -80,6 +81,8 @@ class RetomatonWrapper(KNNWrapper):
         cur_dists = torch.tensor([], dtype=torch.float32)
         no_lookup_counter = 0
 
+        
+        template = []
         for timestep_query, label in zip_longest(queries, captured_labels):
             perform_search = False
             extended_pointers = None
@@ -109,10 +112,23 @@ class RetomatonWrapper(KNNWrapper):
             
             if not self.no_pointer and label is not None:
                 vals_are_correct_and_pointer_available = (vals_at_knns == label) & (knns < self.dstore_size - 1)
+                '''
+                if (~vals_are_correct_and_pointer_available).sum() > 0:
+                    import pdb; pdb.set_trace()
+                else:
+                    print('all correct')
+                '''
                 cur_knns = knns[vals_are_correct_and_pointer_available]
                 cur_dists = dists[vals_are_correct_and_pointer_available]
                 cur_knns = cur_knns[cur_dists.argsort(descending=True)]
 
+                if perform_search is True and len(template) > 6 and 50256 not in template:
+                    print(self.tokenizer.decode(template))
+                    self.templates.append(template)
+                    template = []
+                else:
+                    template.append(label.item())
+        import pdb; pdb.set_trace()
         interpolated_scores = KNNWrapper.interpolate(torch.stack(all_knn_probs), lm_logits, self.lmbda) # (nonpad, vocab)
         output[nonpad_mask] = interpolated_scores
         return output

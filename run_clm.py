@@ -649,7 +649,7 @@ def main():
             recompute_dists=knn_args.recompute_dists,
             k=knn_args.k, lmbda=knn_args.lmbda, knn_temp=knn_args.knn_temp, probe=knn_args.probe,
             no_pointer=knn_args.no_pointer, min_knns=knn_args.min_knns, max_knns=knn_args.max_knns,
-            members=knn_args.members)
+            members=knn_args.members, tokenizer=tokenizer)
     elif knn_args.knn:
         knn_wrapper = KNNWrapper(dstore_size=knn_args.dstore_size, dstore_dir=knn_args.dstore_dir, 
             dimension= dimension, 
@@ -725,6 +725,7 @@ def main():
             input_ids = batch["input_ids"][:,:4].to(training_args.device)
             attention_mask = batch["attention_mask"][:,:4].to(training_args.device)
             with torch.no_grad():
+                import pdb; pdb.set_trace()
                 if not data_args.sampling:
                     predict_results = model.generate(
                         input_ids=input_ids, attention_mask=attention_mask, max_length=data_args.generate_length,

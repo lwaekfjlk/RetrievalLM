@@ -1,6 +1,6 @@
 MODEL=gpt2-code-finetune
 
-python -u ../run_clm.py \
+CUDA_VISIBLE_DEVICES=0 python -u ../run_clm.py \
   --model_name_or_path ../checkpoints/${MODEL} \
   --dataset_name Fraser/python-lines \
   --output_dir ./outputs/${MODEL}/eval_knn \
