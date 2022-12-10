@@ -732,10 +732,6 @@ def main():
             input_ids = batch["input_ids"][:,:4].to(training_args.device)
             attention_mask = batch["attention_mask"][:,:4].to(training_args.device)
             with torch.no_grad():
-<<<<<<< HEAD
-                import pdb; pdb.set_trace()
-                if not data_args.sampling:
-=======
                 if data_args.step_by_step:
                     for i in range(4, data_args.generate_length):
                         predict_results = model.generate(
@@ -745,7 +741,6 @@ def main():
                         input_ids = predict_results
                         attention_mask = torch.ones_like(input_ids)
                 elif not data_args.sampling:
->>>>>>> 25781937989796fd2bbc52ecf88bfab8211acc4d
                     predict_results = model.generate(
                         input_ids=input_ids, attention_mask=attention_mask, max_length=data_args.generate_length,
                         num_beams=data_args.num_beams, no_repeat_ngram_size=data_args.no_repeat_ngram_size
