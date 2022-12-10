@@ -239,7 +239,14 @@ class DataTrainingArguments:
             )
         },
     )
-
+    step_by_step: bool = field(
+        default=False,
+        metadata={
+            "help": (
+                "If set to True, will use the step by step generation function."
+            )
+        },
+    )
 
     def __post_init__(self):
         if self.dataset_name is None and self.train_file is None and self.validation_file is None:
@@ -725,7 +732,15 @@ def main():
             input_ids = batch["input_ids"][:,:4].to(training_args.device)
             attention_mask = batch["attention_mask"][:,:4].to(training_args.device)
             with torch.no_grad():
-                if not data_args.sampling:
+                if data_args.step_by_step:
+                    for i in range(4, data_args.generate_length):
+                        predict_results = model.generate(
+                            input_ids=input_ids, attention_mask=attention_mask, max_length=i,
+                            num_beams=data_args.num_beams, no_repeat_ngram_size=data_args.no_repeat_ngram_size
+                            )
+                        input_ids = predict_results
+                        attention_mask = torch.ones_like(input_ids)
+                elif not data_args.sampling:
                     predict_results = model.generate(
                         input_ids=input_ids, attention_mask=attention_mask, max_length=data_args.generate_length,
                         num_beams=data_args.num_beams, no_repeat_ngram_size=data_args.no_repeat_ngram_size
@@ -736,6 +751,9 @@ def main():
                         do_sample=True, top_k=data_args.top_k, top_p=data_args.top_p, temperature=data_args.temperature,
                     )
             for predict_result, gd in zip(predict_results, texts):
+                # truncate by eos
+                if tokenizer.eos_token_id in predict_result:
+                    predict_result = predict_result[:list(predict_result).index(tokenizer.eos_token_id)]
                 generate_results.append(tokenizer.decode(predict_result, skip_special_tokens=True))
                 output_file.write(generate_results[-1] + '\t' + gd + "\n")
         output_file.close()
