@@ -712,8 +712,10 @@ def main():
 
         trainer.log_metrics("eval", metrics)
         trainer.save_metrics("eval", metrics)
-    
+        torch.save(knn_wrapper.templates, 'templates.pt')
+
     if training_args.do_predict:
+        templates = torch.load('templates.pt')
         bleu_metric = load_metric("sacrebleu")
         logger.info("*** Predict ***")
         # load data from eval dataset
@@ -734,12 +736,25 @@ def main():
             with torch.no_grad():
                 if data_args.step_by_step:
                     for i in range(4, data_args.generate_length):
+                        max_length = input_ids.shape[1] + 1
                         predict_results = model.generate(
-                            input_ids=input_ids, attention_mask=attention_mask, max_length=i,
-                            num_beams=data_args.num_beams, no_repeat_ngram_size=data_args.no_repeat_ngram_size
+                            input_ids=input_ids, attention_mask=attention_mask, max_length=max_length,
+                            num_beams=data_args.num_beams, no_repeat_ngram_size=data_args.no_repeat_ngram_size,
+                            pad_token_id=tokenizer.eos_token_id,
                             )
+                        match_list = []
+                        for idx, res in enumerate(predict_results):
+                            latest_tokens = tuple(res[-3:].tolist())
+                            if latest_tokens in templates.keys():
+                                tokens = templates[latest_tokens][0][3:]
+                                match_list.append(torch.LongTensor(tokens))
+                            else:
+                                match_list.append(torch.LongTensor([tokenizer.pad_token_id]))
+                        match_tensor = torch.nn.utils.rnn.pad_sequence(match_list, batch_first=True, padding_value=tokenizer.pad_token_id)
+                        if (match_tensor == tokenizer.pad_token_id).sum() != predict_results.shape[0]:
+                            predict_results = torch.cat((predict_results, match_tensor.to(training_args.device)), dim=1)
                         input_ids = predict_results
-                        attention_mask = torch.ones_like(input_ids)
+                        attention_mask = input_ids.ne(tokenizer.pad_token_id)
                 elif not data_args.sampling:
                     predict_results = model.generate(
                         input_ids=input_ids, attention_mask=attention_mask, max_length=data_args.generate_length,

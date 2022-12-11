@@ -20,6 +20,8 @@ import faiss
 import faiss.contrib.torch_utils
 from faiss import IndexFlatL2
 import scipy.sparse as sp
+from collections import defaultdict
+
 
 logger = logging.getLogger(__name__)
 logger.setLevel(20)
@@ -31,7 +33,6 @@ class RetomatonWrapper(KNNWrapper):
         self.min_knns = min_knns
         self.max_knns = max_knns
         self.tokenizer = tokenizer
-        self.templates = []
 
         if members is None:
             available_member_files = glob.glob(f'{self.dstore_dir}/members*')
@@ -54,6 +55,7 @@ class RetomatonWrapper(KNNWrapper):
         self.generate_cur_knns = torch.tensor([], dtype=torch.int64)
         self.generate_cur_dists = torch.tensor([], dtype=torch.float32)
         self.no_lookup_counter_history = []
+        self.templates = defaultdict(list)
 
     def post_forward_hook(self, module, input, output):
         shift = 0 if self.is_encoder_decoder else 1
@@ -61,7 +63,8 @@ class RetomatonWrapper(KNNWrapper):
             # In "generate" mode, we don't support yet tracking of the beam search hypotheses across time,
             # which we need to track in order to implement RetoMaton correctly. 
             # In the meantime, use kNN-LM's generate
-            return super().post_forward_hook(module, input, output)
+            # return super().post_forward_hook(module, input, output)
+            return output
 
         lm_logits = output
         lm_logits = torch.nn.functional.log_softmax(lm_logits, dim=-1) # (batch, time, vocab)
@@ -92,8 +95,14 @@ class RetomatonWrapper(KNNWrapper):
                 perform_search = True
                 self.no_lookup_counter_history.append(no_lookup_counter)
                 no_lookup_counter = 0
+
+                if len(template) > 6 and 50256 not in template: 
+                    self.templates[(template[0], template[1], template[2])].append(template)
+                    print(self.tokenizer.decode(template))
+                template = []
             else:
                 no_lookup_counter += 1
+                template.append(label.item())
 
             if self.no_pointer:
                 extended_pointers = None
@@ -122,13 +131,6 @@ class RetomatonWrapper(KNNWrapper):
                 cur_dists = dists[vals_are_correct_and_pointer_available]
                 cur_knns = cur_knns[cur_dists.argsort(descending=True)]
 
-                if perform_search is True and len(template) > 6 and 50256 not in template:
-                    print(self.tokenizer.decode(template))
-                    self.templates.append(template)
-                    template = []
-                else:
-                    template.append(label.item())
-        import pdb; pdb.set_trace()
         interpolated_scores = KNNWrapper.interpolate(torch.stack(all_knn_probs), lm_logits, self.lmbda) # (nonpad, vocab)
         output[nonpad_mask] = interpolated_scores
         return output
